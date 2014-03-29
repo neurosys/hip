@@ -20,6 +20,10 @@ class Ip
         char* GetMask();
         void Print();
         char GetClass();
+        unsigned char* GetNetworkAddr();
+        unsigned char* GetNetworkBroadcastAddr();
+        unsigned char* GetNetworkFirstAddr();
+        unsigned char* GetNetworkLastAddr();
 
     private:
         unsigned char GetDefaultMask(char ip_class);
@@ -41,7 +45,7 @@ Ip::Ip(unsigned int bin_ip)
     printf("Ip:Ctr:");
     for (int i = 0; i < IPSIZE; i++)
     {
-        printf(" b_ip[%d] = %X", i, b_ip[i]);
+        printf(" b_ip[%d] = 0x%X(%d)", i, b_ip[i], b_ip[i]);
     }
     printf("\n");
 }
@@ -109,39 +113,99 @@ unsigned char* Ip::GetMaskArray(int in_mask)
     return buf;
 }
 
+unsigned char* Ip::GetNetworkAddr()
+{
+    unsigned char* network = new unsigned char[IPSIZE];
+    for (int i = 0; i < IPSIZE; i++)
+    {
+        network[i] = b_ip[i] & b_mask[i];
+    }
+    return network;
+}
+
+unsigned char* Ip::GetNetworkBroadcastAddr()
+{
+    unsigned char* broadcast = GetNetworkAddr();
+    for (int i = 0; i < IPSIZE; i++)
+    {
+        broadcast[i] |= ~b_mask[i];
+    }
+    return broadcast;
+}
+
+unsigned char* Ip::GetNetworkFirstAddr()
+{
+    unsigned char* first_addr = GetNetworkAddr();
+    first_addr[0]++;
+    return first_addr;
+}
+
+unsigned char* Ip::GetNetworkLastAddr()
+{
+    unsigned char* last_addr = GetNetworkBroadcastAddr();
+    last_addr[0]--;
+    return last_addr;
+}
 void Ip::Print()
 {
     // a maximum of 3 chars per byte + n-1 separators + 1 terminator
     char* ip_buf = new char[IPSIZE * 4];
     char* mask_buf = new char[IPSIZE * 4];
+    char* network_buf = new char[IPSIZE * 4];
+    char* broadcast_buf = new char[IPSIZE * 4];
+    char* first_ip_buf  = new char[IPSIZE * 4];
+    char* last_ip_buf   = new char[IPSIZE * 4];
+
+    unsigned char* network = GetNetworkAddr();
+    unsigned char* broadcast = GetNetworkBroadcastAddr();
+    unsigned char* first_ip = GetNetworkFirstAddr();
+    unsigned char* last_ip = GetNetworkLastAddr();
     for (int i = IPSIZE; i > 0; i--)
     {
         sprintf(ip_buf, "%s%d", ip_buf, (int)b_ip[i-1]);
         sprintf(mask_buf, "%s%d", mask_buf, (int)b_mask[i-1]);
+        sprintf(network_buf, "%s%d", network_buf, (int)network[i-1]);
+        sprintf(first_ip_buf, "%s%d", first_ip_buf, (int)first_ip[i-1]);
+        sprintf(last_ip_buf, "%s%d", last_ip_buf, (int)last_ip[i-1]);
+        sprintf(broadcast_buf, "%s%d", broadcast_buf, (int)broadcast[i-1]);
         if (i-1 != 0)
         {
             sprintf(ip_buf, "%s.", ip_buf);
             sprintf(mask_buf, "%s.", mask_buf);
+            sprintf(network_buf, "%s.", network_buf);
+            sprintf(first_ip_buf, "%s.", first_ip_buf);
+            sprintf(last_ip_buf, "%s.", last_ip_buf);
+            sprintf(broadcast_buf, "%s.", broadcast_buf);
         }
     }
     printf("%s/%d (%c) %s\n", ip_buf, mask, GetClass(), mask_buf);
+    printf("Network: %s Broadcast: %s\n", network_buf, broadcast_buf);
+    printf("First ip: %s Last ip: %s \n", first_ip_buf, last_ip_buf);
     delete[] ip_buf;
     delete[] mask_buf;
+    delete[] network_buf;
+    delete[] broadcast_buf;
+    delete[] first_ip_buf;
+    delete[] last_ip_buf;
+    delete[] network;
+    delete[] broadcast;
+    delete[] first_ip;
+    delete[] last_ip;
 }
 
 int main(int argc, char* argv[])
 {
     Ip* ip = NULL;
-    printf("argc = %d\n", argc);
+    printf("main: argc = %d\n", argc);
     if (argc == 1)
     {
         // ToDo
-        printf("Aici ar fi frumos sa afisez optiunile de rulare\n");
+        printf("main: Aici ar fi frumos sa afisez optiunile de rulare\n");
         return 0;
     }
     for (int i = 1; i < argc; i++)
     {
-        printf("argv[%d] = '%s'\n", i, argv[i]);
+        printf("main: argv[%d] = '%s'\n", i, argv[i]);
         if (strlen(argv[i]) == 8)
         {
             // todo verificare de caractere
@@ -157,10 +221,6 @@ int main(int argc, char* argv[])
             ip = new Ip(x);
         }
     }
-    printf("main: Am facut initializarile\n");
-
-    //Ip ip(0x00020304);
     ip->Print();
-    printf("class = %c\n", ip->GetClass());
     return 0;
 }
