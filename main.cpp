@@ -286,14 +286,20 @@ unsigned char* Ip::GetNetworkBroadcastAddr()
 unsigned char* Ip::GetNetworkFirstAddr()
 {
     unsigned char* first_addr = GetNetworkAddr();
-    first_addr[0]++;
+    if (!(first_addr[0] & 0x01))
+    {
+        first_addr[0]++;
+    }
     return first_addr;
 }
 
 unsigned char* Ip::GetNetworkLastAddr()
 {
     unsigned char* last_addr = GetNetworkBroadcastAddr();
-    last_addr[0]--;
+    if ((mask < 32) && (last_addr[0] & 0x01))
+    {
+        last_addr[0]--;
+    }
     return last_addr;
 }
 
