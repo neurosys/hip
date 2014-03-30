@@ -15,8 +15,7 @@ class Ip
 
     public:
         Ip(unsigned int bin_ip);
-        Ip(char* str_ip); 
-        Ip(char* str_ip, char* str_mask); 
+        Ip(char* str_ip, char* str_mask = NULL); 
         virtual ~Ip();
         char* GetNetwork();
         char* GetMask();
@@ -32,6 +31,7 @@ class Ip
     private:
         unsigned char GetDefaultMask(char ip_class);
         unsigned char* GetMaskArray(int mask = -1);
+        char* ExtractIpByte(char* str, unsigned char* byte);
 };
 
 Ip::Ip(unsigned int bin_ip)
@@ -56,8 +56,7 @@ Ip::Ip(unsigned int bin_ip)
     */
 }
 
-char* ExtractIpByte(char* str, unsigned char* byte);
-Ip::Ip(char* str_ip)
+Ip::Ip(char* str_ip, char* str_mask)
 {
     if (str_ip == NULL || !*str_ip)
     {
@@ -72,17 +71,36 @@ Ip::Ip(char* str_ip)
     //printf("Ip::Ip(str_ip) 2\n");
     b_ip = new unsigned char[IPSIZE];
     char* ip_str = strdup(str_ip);
-    char* cursor = ip_str;
-    char* str_mask = index(cursor, '/');
-    // Separate mask from the rest of the string
     default_mask = true;
-    if (str_mask)
+    if (str_mask == NULL)
     {
-        *str_mask = '\0';
-        str_mask++;
-        mask = atoi(str_mask);
-        default_mask = false;
+        str_mask = index(ip_str, '/');
+        // Separate mask from the rest of the string
+        if (str_mask)
+        {
+            *str_mask = '\0';
+            str_mask++;
+            mask = atoi(str_mask);
+            default_mask = false;
+            b_mask = GetMaskArray(mask);
+        }
     }
+    else
+    {
+        default_mask = false;
+        char* cursor = str_mask;
+        b_mask = new unsigned char[IPSIZE];
+        for (int i = 0; i < IPSIZE; i++)
+        {
+            unsigned char byte = 0;
+            cursor = ExtractIpByte(cursor, &byte);
+            if (cursor != NULL)
+            {
+                b_mask[IPSIZE -1 - i] = byte;
+            }
+        }
+    }
+    char* cursor = ip_str;
     for (int i = 0; i < IPSIZE; i++)
     {
         //printf("Ip::Ip(str_ip) 5\n");
@@ -97,8 +115,9 @@ Ip::Ip(char* str_ip)
     if (default_mask)
     {
         mask = GetDefaultMask(GetClass());
+        b_mask = GetMaskArray(mask);
     }
-    b_mask = GetMaskArray(mask);
+    /*
     printf("Ip:Ctr:");
     for (int i = 0; i < IPSIZE; i++)
     {
@@ -111,11 +130,12 @@ Ip::Ip(char* str_ip)
         printf(" b_mask[%d] = 0x%X(%d)", i, b_mask[i], b_mask[i]);
     }
     printf("\n");
+    */
 }
 
 // What should I return in case of error?
 // should I handle mask?
-char* ExtractIpByte(char* str, unsigned char* byte)
+char* Ip::ExtractIpByte(char* str, unsigned char* byte)
 {
     if (!str || !*str)
     {
@@ -143,13 +163,18 @@ char* ExtractIpByte(char* str, unsigned char* byte)
         }
         else if (is_digit)
         {
-            if ((i + 1) == (int)strlen(str))
+            /*
+            printf("i + 1 (%d) == strlen(str) (%d)\n",
+                    i+1, (int)strlen(str));
+                    */
+            //if ((i + 1) == (int)strlen(str))
+            if ((i + 1) == (int)strlen(str) ||  (i + 1) == 3)
             {
                 int digit = atoi(str);
                 if (digit >= 0 && digit <= 255)
                 {
                     *byte = (unsigned char)digit;
-                    return str + i;
+                    return str + i + 2;
                 }
             }
             // Go on!
@@ -221,7 +246,6 @@ unsigned char* Ip::GetMaskArray(int in_mask)
     int nr_bytes = msk / 8;
     int extra = msk % 8;
     unsigned char* buf = new unsigned char[IPSIZE];
-    printf("Ip:GetMaskArray: nr_bytes = %X extra = %X\n", nr_bytes, extra);
     memset(buf, 0, IPSIZE);
     for (int i = 0; i < nr_bytes; i++)
     {
@@ -282,6 +306,12 @@ void Ip::Print()
     char* broadcast_buf = new char[IPSIZE * 4];
     char* first_ip_buf  = new char[IPSIZE * 4];
     char* last_ip_buf   = new char[IPSIZE * 4];
+    memset(ip_buf, 0, IPSIZE * 4);
+    memset(mask_buf, 0, IPSIZE * 4);
+    memset(network_buf, 0, IPSIZE * 4);
+    memset(broadcast_buf, 0, IPSIZE * 4);
+    memset(first_ip_buf, 0, IPSIZE * 4);
+    memset(last_ip_buf, 0, IPSIZE * 4);
 
     unsigned char* network = GetNetworkAddr();
     unsigned char* broadcast = GetNetworkBroadcastAddr();
@@ -339,7 +369,7 @@ bool Ip::IsValidInt32(char* str)
 int main(int argc, char* argv[])
 {
     Ip* ip = NULL;
-    printf("main: argc = %d\n", argc);
+    //printf("main: argc = %d\n", argc);
     if (argc == 1)
     {
         // ToDo
@@ -348,7 +378,7 @@ int main(int argc, char* argv[])
     }
     for (int i = 1; i < argc; i++)
     {
-        printf("main: argv[%d] = '%s'\n", i, argv[i]);
+        //printf("main: argv[%d] = '%s'\n", i, argv[i]);
         if (strlen(argv[i]) == 8 && Ip::IsValidInt32(argv[i]))
         {
             unsigned int x = strtol(argv[i], NULL, 16);
@@ -365,6 +395,11 @@ int main(int argc, char* argv[])
         else if (argc == 2)
         {
             ip = new Ip(argv[i]);
+        }
+        else if (argc == 3)
+        {
+            ip = new Ip(argv[i], argv[i+1]);
+            i++;
         }
     }
     if (ip)
