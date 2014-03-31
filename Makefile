@@ -1,6 +1,6 @@
 
 CC=g++
-PROJECT=test.exe
+PROJECT=hip
 CFLAGS=-c -W -Wall -g
 OUT=-o
 

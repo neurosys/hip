@@ -430,8 +430,12 @@ int main(int argc, char* argv[])
     //printf("main: argc = %d\n", argc);
     if (argc == 1)
     {
-        // ToDo
-        printf("main: Aici ar fi frumos sa afisez optiunile de rulare\n");
+        printf("Options:\n");
+        printf("\t<program> <hex value for ip>\n");
+        printf("\t<program> 0x<hex value for ip>\n");
+        printf("\t<program> <ip in dot form>\n");
+        printf("\t<program> <ip in dot form>/<mask nr>\n");
+        printf("\t<program> <ip in dot form>> <mask in dot form>\n");
         return 0;
     }
     for (int i = 1; i < argc; i++)
