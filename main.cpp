@@ -25,12 +25,14 @@ class Ip
         unsigned char* GetNetworkBroadcastAddr();
         unsigned char* GetNetworkFirstAddr();
         unsigned char* GetNetworkLastAddr();
+        unsigned char* GetNetworkWildcard();
         static bool IsValidInt32(char* str);
         static bool IsValidCharSet(char* str, char* char_set);
 
     private:
         unsigned char GetDefaultMask(char ip_class);
         unsigned char* GetMaskArray(int mask = -1);
+        unsigned char GetMaskNum();
         char* ExtractIpByte(char* str, unsigned char* byte);
 };
 
@@ -99,6 +101,7 @@ Ip::Ip(char* str_ip, char* str_mask)
                 b_mask[IPSIZE -1 - i] = byte;
             }
         }
+        mask = GetMaskNum();
     }
     char* cursor = ip_str;
     for (int i = 0; i < IPSIZE; i++)
@@ -240,6 +243,28 @@ unsigned char Ip::GetDefaultMask(char ip_class)
     }
 }
 
+unsigned char Ip::GetMaskNum()
+{
+    unsigned char rez = 0;
+    for (int i = 0; i < IPSIZE; i++)
+    {
+        if (b_mask[IPSIZE -1 -i] == 0xFF)
+        {
+            rez += 8;
+        }
+        else if (b_mask[IPSIZE -1 -i] != 0)
+        {
+            unsigned char read_mask = 0x01;
+            for (int j = 0; j < 8; j++)
+            {
+                rez += (b_mask[IPSIZE -1 -i] & read_mask) ? 1 : 0;
+                read_mask <<= 1;
+            }
+        }
+    }
+    return rez;
+}
+
 unsigned char* Ip::GetMaskArray(int in_mask)
 {
     unsigned char msk = (in_mask != -1) ? in_mask : mask;
@@ -303,6 +328,26 @@ unsigned char* Ip::GetNetworkLastAddr()
     return last_addr;
 }
 
+unsigned char* Ip::GetNetworkWildcard()
+{
+    unsigned char* wildcard = new unsigned char[IPSIZE];
+    for (int i = 0; i < IPSIZE; i++)
+    {
+        wildcard[i] = ~(b_mask[i]);
+    }
+    return wildcard;
+}
+
+int Pow(int base, int exponent)
+{
+    int rez = 1;
+    for (int i = 0; i < exponent; i++)
+    {
+        rez *= base;
+    }
+    return rez;
+}
+
 void Ip::Print()
 {
     // a maximum of 3 chars per byte + n-1 separators + 1 terminator
@@ -312,17 +357,20 @@ void Ip::Print()
     char* broadcast_buf = new char[IPSIZE * 4];
     char* first_ip_buf  = new char[IPSIZE * 4];
     char* last_ip_buf   = new char[IPSIZE * 4];
+    char* wildcard_buf   = new char[IPSIZE * 4];
     memset(ip_buf, 0, IPSIZE * 4);
     memset(mask_buf, 0, IPSIZE * 4);
     memset(network_buf, 0, IPSIZE * 4);
     memset(broadcast_buf, 0, IPSIZE * 4);
     memset(first_ip_buf, 0, IPSIZE * 4);
     memset(last_ip_buf, 0, IPSIZE * 4);
+    memset(wildcard_buf, 0, IPSIZE * 4);
 
     unsigned char* network = GetNetworkAddr();
     unsigned char* broadcast = GetNetworkBroadcastAddr();
     unsigned char* first_ip = GetNetworkFirstAddr();
     unsigned char* last_ip = GetNetworkLastAddr();
+    unsigned char* wildcard = GetNetworkWildcard();
     for (int i = IPSIZE; i > 0; i--)
     {
         sprintf(ip_buf, "%s%d", ip_buf, (int)b_ip[i-1]);
@@ -331,6 +379,7 @@ void Ip::Print()
         sprintf(first_ip_buf, "%s%d", first_ip_buf, (int)first_ip[i-1]);
         sprintf(last_ip_buf, "%s%d", last_ip_buf, (int)last_ip[i-1]);
         sprintf(broadcast_buf, "%s%d", broadcast_buf, (int)broadcast[i-1]);
+        sprintf(wildcard_buf, "%s%d", wildcard_buf, (int)wildcard[i-1]);
         if (i-1 != 0)
         {
             sprintf(ip_buf, "%s.", ip_buf);
@@ -339,11 +388,12 @@ void Ip::Print()
             sprintf(first_ip_buf, "%s.", first_ip_buf);
             sprintf(last_ip_buf, "%s.", last_ip_buf);
             sprintf(broadcast_buf, "%s.", broadcast_buf);
+            sprintf(wildcard_buf, "%s.", wildcard_buf);
         }
     }
-    printf("%s/%d (%c) %s\n", ip_buf, mask, GetClass(), mask_buf);
+    printf("%s/%d (%c) %s (%s)\n", ip_buf, mask, GetClass(), mask_buf, wildcard_buf);
     printf("Network: %s Broadcast: %s\n", network_buf, broadcast_buf);
-    printf("First ip: %s Last ip: %s \n", first_ip_buf, last_ip_buf);
+    printf("First ip: %s Last ip: %s Hosts available %d\n", first_ip_buf, last_ip_buf, (mask < 32) ? Pow(2, (8 * IPSIZE) - mask) - 2 : 1);
     delete[] ip_buf;
     delete[] mask_buf;
     delete[] network_buf;
@@ -354,6 +404,8 @@ void Ip::Print()
     delete[] broadcast;
     delete[] first_ip;
     delete[] last_ip;
+    delete[] wildcard_buf;
+    delete[] wildcard;
 }
 
 bool Ip::IsValidInt32(char* str)
